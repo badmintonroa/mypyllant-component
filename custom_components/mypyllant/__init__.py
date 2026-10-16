@@ -12,7 +12,8 @@ from homeassistant.core import (
     ServiceResponse,
 )
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers import selector
+from homeassistant.helpers import entity_registry as er, selector
+from homeassistant.helpers.device_registry import DeviceEntry
 
 from myPyllant import export, report
 
@@ -219,3 +220,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+) -> bool:
+    """
+    Allow removing devices without entities from the UI, i.e. devices that are left over
+    after entities moved to a different device (such as the old separate ventilation device)
+    """
+    entity_registry = er.async_get(hass)
+    return not er.async_entries_for_device(
+        entity_registry, device_entry.id, include_disabled_entities=True
+    )

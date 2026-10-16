@@ -27,6 +27,7 @@ from custom_components.mypyllant.climate import (
     ZONE_HVAC_ACTION_MAP,
     AmbisenseClimate,
 )
+from custom_components.mypyllant.sensor import SystemDeviceSensor
 from custom_components.mypyllant.ventilation_climate import VentilationClimate
 from tests.utils import get_config_entry
 
@@ -128,6 +129,14 @@ async def test_ventilation_climate(
             system_coordinator_mock,
         )
         assert isinstance(ventilation.device_info, dict)
+        # Ventilation entities share the HA device with the unit's device sensors
+        device_index = ventilation.system_device_index
+        assert device_index is not None
+        device_sensor = SystemDeviceSensor(0, device_index, system_coordinator_mock)
+        assert (
+            ventilation.device_info["identifiers"]
+            == device_sensor.device_info["identifiers"]
+        )
         assert isinstance(ventilation.extra_state_attributes, dict)
         assert isinstance(ventilation.hvac_mode, HVACMode)
         assert isinstance(ventilation.fan_mode, str)

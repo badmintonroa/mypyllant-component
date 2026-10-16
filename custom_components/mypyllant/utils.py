@@ -485,14 +485,41 @@ class VentilationEntity(CoordinatorEntity):
         return f"{self.system.id}_ventilation_{self.ventilation_index}"
 
     @property
+    def home_name(self) -> str:
+        return self.system.home.home_name or self.system.home.nomenclature
+
+    @property
+    def system_device_index(self) -> int | None:
+        """
+        Index in system.devices of the physical ventilation unit belonging to this ventilation
+        """
+        indices = [
+            i for i, d in enumerate(self.system.devices) if d.type == "ventilation"
+        ]
+        if len(indices) > self.ventilation_index:
+            return indices[self.ventilation_index]
+        return None
+
+    @property
     def name_prefix(self) -> str:
         vname = [d for d in self.system.devices if d.type == "ventilation"][
             0
         ].name_display
-        return f"{self.system.home.home_name or self.system.home.nomenclature} Ventilation {vname}"
+        return f"{self.home_name} Ventilation {vname}"
 
     @property
     def device_info(self) -> DeviceInfo:
+        device_index = self.system_device_index
+        if device_index is not None:
+            # Attach to the same HA device as the unit's energy & device sensors
+            # (see SystemDeviceSensor / DataSensor), instead of creating a second one
+            device = self.system.devices[device_index]
+            return DeviceInfo(
+                identifiers={(DOMAIN, f"{self.system.id}_device_{device.device_uuid}")},
+                name=f"{self.home_name} Device {device_index} {device.name_display}",
+                manufacturer=device.brand_name,
+                model=device.product_name_display,
+            )
         return DeviceInfo(
             identifiers={(DOMAIN, self.id_infix)},
             name=self.name_prefix,
