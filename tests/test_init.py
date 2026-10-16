@@ -13,7 +13,11 @@ from myPyllant.tests.generate_test_data import DATA_DIR
 from myPyllant.tests.utils import load_test_data
 
 from custom_components.mypyllant.const import DOMAIN
-from custom_components.mypyllant import async_setup_entry, async_unload_entry
+from custom_components.mypyllant import (
+    async_remove_config_entry_device,
+    async_setup_entry,
+    async_unload_entry,
+)
 from custom_components.mypyllant.config_flow import DATA_SCHEMA
 from tests.utils import get_config_entry, test_user_input
 
@@ -81,3 +85,27 @@ async def test_async_setup(
         assert result, "Component did not unload successfully"
 
     await mocked_api.aiohttp_session.close()
+
+
+async def test_async_remove_config_entry_device(hass: HomeAssistant):
+    from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+    config_entry = get_config_entry()
+    config_entry.add_to_hass(hass)
+    device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
+    empty_device = device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id, identifiers={(DOMAIN, "empty")}
+    )
+    used_device = device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id, identifiers={(DOMAIN, "used")}
+    )
+    entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        "some_sensor",
+        config_entry=config_entry,
+        device_id=used_device.id,
+    )
+    assert await async_remove_config_entry_device(hass, config_entry, empty_device)
+    assert not await async_remove_config_entry_device(hass, config_entry, used_device)
